@@ -1,9 +1,3 @@
-#
-# Pure OCaml, no packages, no _tags
-#
-
-# bin-annot is required for Merlin and other IDE-like tools
-
 .PHONY:	all clean byte native profile debug test
 
 OCB_FLAGS = -tag bin_annot -I src
