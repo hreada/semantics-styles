@@ -167,8 +167,8 @@ let rec string_of_buffer buffer = match buffer with
 let rec string_of_aexp aexp = match aexp with
 | IntAExp (n) -> string_of_int n
 | IdAExp (x) -> x
-| PlusAExp (e1, e2) -> (string_of_aexp e1) ^ "+" ^ (string_of_aexp e1)
-| DivAExp(e1, e2) -> (string_of_aexp e1) ^ "/" ^ (string_of_aexp e1)
+| PlusAExp (e1, e2) -> (string_of_aexp e1) ^ "+" ^ (string_of_aexp e2)
+| DivAExp(e1, e2) -> (string_of_aexp e1) ^ "/" ^ (string_of_aexp e2)
 | IncAExp (x) -> "++" ^ x
 | ReadAExp -> "read()"
 ;;
@@ -177,7 +177,7 @@ let rec string_of_bexp bexp = match bexp with
 | BoolBExp (b) -> string_of_bool b
 | LessThanBExp (e1, e2) -> (string_of_aexp e1) ^ "<" ^ (string_of_aexp e2)
 | NotBExp (e) -> "!" ^ "(" ^ (string_of_bexp e) ^ ")"
-| AndBExp (e1, e2) -> (string_of_bexp e1) ^ "&&" ^ (string_of_bexp e1)
+| AndBExp (e1, e2) -> (string_of_bexp e1) ^ "&&" ^ (string_of_bexp e2)
 ;;
 
 let rec string_of_block b = match b with
@@ -186,7 +186,8 @@ let rec string_of_block b = match b with
 and string_of_stmt stmt = match stmt with
 | BlockStmt (b) -> (string_of_block b)
 | AssignStmt (x, e) -> x ^ ":=" ^ (string_of_aexp e) ^ ";"
-| SeqStmt (s1, s2) -> (string_of_stmt s1) ^ " " ^ (string_of_stmt s2)
+| SeqStmt (s1, s2) -> "(" ^ (string_of_stmt s1) ^ ")" 
+    ^ " " ^ "(" ^ (string_of_stmt s2) ^ ")"
 | IfStmt (cond, b1, b2) -> 
     "if" ^ "(" ^ (string_of_bexp cond) ^ ")" ^ (string_of_block b1)
     ^ (string_of_block b2)
@@ -198,7 +199,7 @@ and string_of_stmt stmt = match stmt with
 | DeclarationStmt (xs) -> "int" ^ " " ^ (string_of_id_list xs) ^ ";"
 | LetStmt (x, e, stmt) -> 
     "let" ^ " " ^ x ^ "=" ^ (string_of_aexp e) ^ " "
-    ^ "in" ^ " " ^ (string_of_stmt stmt)
+    ^ "in" ^ " (" ^ (string_of_stmt stmt) ^ ")"
 ;;
 
 let rec string_of_state s = match s with
@@ -230,7 +231,8 @@ let string_of_cfg cfg = match cfg with
     ^ "," ^ (string_of_buffer outs) ^ ">"
 ;;
 
-let print_cfg cfg = print_string (string_of_cfg cfg);;
+let print_stmt stmt = print_string ((string_of_stmt stmt) ^ "\n");;
+let print_cfg cfg = print_string ((string_of_cfg cfg) ^ "\n");;
 
 
 
@@ -328,7 +330,7 @@ let rec eval cfg = match cfg with
         | StateCfg (s2, ins2, outs2) -> StateCfg (s2, ins2, outs1 @ outs2)
         | _ -> cfg
         )
-    | _ -> cfg
+    | err_cfg -> print_string "unexpected case (seq):\n"; print_cfg err_cfg; cfg
     )
 | StmtCfg (IfStmt (cond, block1, block2), s, ins) ->
     (match eval (BExpCfg (cond, s, ins)) with
@@ -345,7 +347,7 @@ let rec eval cfg = match cfg with
         if b = false then StateCfg (s1, ins1, [])
         else let while_unfold = SeqStmt (BlockStmt (block), WhileStmt (cond, block)) in
           eval (StmtCfg (while_unfold, s1, ins1))
-    | _ -> cfg
+    | err_cfg -> print_string "unexpected case while:\n"; print_cfg err_cfg; cfg
     )
 | StmtCfg (PrintStmt (e), s, ins) ->
     (match eval (AExpCfg (e, s, ins)) with
@@ -369,7 +371,7 @@ let rec eval cfg = match cfg with
         | StateCfg (s2, ins2, outs2) ->
             let s2_restore = lookup_and_update_state s2 s1 x in
             StateCfg (s2_restore, ins2, outs2)
-        | _ -> cfg
+        | err_cfg -> print_string "unexpected case let:\n"; print_cfg err_cfg ; cfg
         )
     | _ -> cfg
     )
